@@ -1,3 +1,10 @@
+// Either based on or stolen from...
+// https://godotshaders.com/shader/random-displacement-animation-easy-ui-animation/
+// by enekoassets
+// Godot Shaders Page: https://godotshaders.com/author/enekoassets/
+// Github Page: https://enekoassets.github.io/
+
+
 shader_type canvas_item;
 uniform float interval = 0.5; // the displacement will happen every [interval] seconds
 uniform float timeDelay = 0.0; // use it if you don't want all the sprites to move at the same time
