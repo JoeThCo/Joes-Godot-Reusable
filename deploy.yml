@@ -1,0 +1,73 @@
+name: Godot 4 Build & itch.io Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  GODOT_VERSION: "4.7.1"
+
+jobs:
+  buildForWeb:
+    name: Build for Web 🎮
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.7.1
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Godot .godot Folder
+        uses: actions/cache@v4
+        with:
+          path: .godot/
+          key: godot-cache-${{ runner.os }}-${{ hashFiles('**/project.godot') }}
+
+      - name: Create Build Directory
+        run: mkdir -v -p Builds
+
+      - name: Setup Export Templates & Export Web Build
+        run: |
+          # Install fontconfig and download utilities
+          apt-get update && apt-get install -y fontconfig wget unzip
+
+          # Prepare export templates directory
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TEMPLATE_DIR"
+
+          # Download and unpack Godot export templates matching GODOT_VERSION
+          wget https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.zip
+          unzip templates.zip
+          mv templates/* "$TEMPLATE_DIR/"
+          rm -rf templates.zip templates
+
+          # Export project to HTML5/Web
+          godot --headless --export-release "Web" Builds/index.html
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-Web
+          path: Builds
+
+  deployToItch:
+    name: Deploy to itch.io 🚀
+    needs: buildForWeb
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-Web
+          path: Builds
+
+      - name: Install Butler
+        uses: remarkablegames/setup-butler@v1
+
+      - name: Push to itch.io via Butler
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          butler push ./Builds joetacogames/katch-three:web
